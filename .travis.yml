@@ -10,7 +10,4 @@ before_install:
   - gem install cocoapods --pre
   - pod repo update
   - brew install xcodegen
-  - cd src
-  - xcodegen
-  - pod install
-  - cd ..
+  - cd src && xcodegen && cd ..
