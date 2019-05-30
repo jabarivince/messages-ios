@@ -12,4 +12,5 @@ before_install:
   - brew install xcodegen
   - cd src
   - xcodegen
+  - pod install
   - cd ..
