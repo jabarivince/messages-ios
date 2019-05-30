@@ -5,9 +5,16 @@ xcode_workspace: src/TheMessagesApp.xcworkspace
 xcode_scheme: TheMessagesApp
 xcode_destination: platform=iOS Simulator,OS=10.0,name=iPhone SE
 
+before_cache:
+  - brew cleanup
+
+cache:
+  directories:
+    - $HOME/Library/Caches/Homebrew
+
 before_install:
   - curl -o src/TheMessagesApp/GoogleService-Info.plist -X GET "https://firebasestorage.googleapis.com/v0/b/messages-3d119.appspot.com/o/app-config%2FGoogleService-Info.plist?alt=media&token=${FIREBASE_CONFIG_FILE_TOKEN}"
   - gem install cocoapods --pre
   - pod repo update
   - brew install xcodegen
-  - cd src && xcodegen && cd ..
+  - (cd src; xcodegen)
