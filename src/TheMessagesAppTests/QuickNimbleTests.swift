@@ -14,6 +14,7 @@ class QuickNimbleSpec: QuickSpec {
         describe("Basic Test") {
             context("Checking numbers are equal") {
                 it("Make sure 1 = 1") {
+                    print("hi")
                     expect(1).to(equal(1))
                 }
             }
