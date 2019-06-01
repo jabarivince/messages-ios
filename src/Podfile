@@ -1,13 +1,15 @@
 platform :ios, '10.0'
 
-target 'TheMessageApp' do
+target 'TheMessagesApp' do
   use_frameworks!
-  
+
   pod 'Firebase/Core'
   pod 'Fabric', '~> 1.9.0'
   pod 'Crashlytics', '~> 3.12.0'
 
-  target 'TheMessageAppTests' do
+  target 'TheMessagesAppTests' do
     inherit! :search_paths
+     pod 'Quick'
+     pod 'Nimble'
   end
 end

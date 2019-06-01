@@ -1,9 +1,9 @@
 //
 //  AppDelegate.swift
-//  TheMessageApp
+//  TheMessagesApp
 //
-//  Created by Vince G on 5/29/19.
-//  Copyright © 2019 Guillaume Corporations. All rights reserved.
+//  Created by jabari on 5/30/19.
+//  Copyright © 2019 jabari. All rights reserved.
 //
 
 import UIKit

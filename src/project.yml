@@ -1,19 +1,19 @@
-name: TheMessageApp
+name: TheMessagesApp
 options:
   bundleIdPrefix: com.jabaridash
 targets:
-  TheMessageApp:
+  TheMessagesApp:
     type: application
     platform: iOS
     deploymentTarget: "10.0"
-    sources: [TheMessageApp]
+    sources: [TheMessagesApp]
     dependencies:
       - sdk: libc++.tbd
-  TheMessageAppTests:
+  TheMessagesAppTests:
     type: bundle.unit-test
     platform: iOS
     deploymentTarget: "10.0"
     sources:
-      - path: TheMessageAppTests
+      - path: TheMessagesAppTests
     dependencies:
-      - target: TheMessageApp
+      - target: TheMessagesApp
