@@ -1,6 +1,10 @@
+*.ipa
 *.xcodeproj
 *.xcworkspace
 GoogleService-Info.plist
+src/TheMessagesApp.app.dSYM.zip
+src/fastlane/report.xml
+src/fastlane/test_output
 
 .DS_Store
 Pods

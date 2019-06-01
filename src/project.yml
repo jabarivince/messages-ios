@@ -9,6 +9,8 @@ targets:
     sources: [TheMessagesApp]
     dependencies:
       - sdk: libc++.tbd
+    settings:
+      DEVELOPMENT_TEAM: 62TYL29D89
   TheMessagesAppTests:
     type: bundle.unit-test
     platform: iOS
