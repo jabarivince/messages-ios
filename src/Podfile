@@ -6,10 +6,15 @@ target 'TheMessagesApp' do
   pod 'Firebase/Core'
   pod 'Fabric', '~> 1.9.0'
   pod 'Crashlytics', '~> 3.12.0'
-
-  target 'TheMessagesAppTests' do
+  pod 'MessageKit'
+  pod 'RxSwift', '~> 5'
+  pod 'RxCocoa', '~> 5'
+ 
+ target 'TheMessagesAppTests' do
     inherit! :search_paths
      pod 'Quick'
      pod 'Nimble'
+     pod 'RxBlocking', '~> 5'
+     pod 'RxTest', '~> 5'
   end
 end
