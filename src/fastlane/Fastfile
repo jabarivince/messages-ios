@@ -1,0 +1,46 @@
+default_platform(:ios)
+
+platform :ios do
+  lane :tests do
+    run_tests(
+      workspace: "TheMessagesApp.xcworkspace",
+      devices: ["iPhone SE (10.0)"],
+      scheme: "TheMessagesApp",
+      clean: true,
+      output_types: "html"
+    )
+  end
+
+  lane :beta do
+    # ensure_git_status_clean
+
+    sync_code_signing(
+      type: "appstore",
+      git_url: "git@github.com:N02870941/fastlane.git",
+      verbose: true
+    )
+
+    # increment_build_number({
+    #   build_number: latest_testflight_build_number + 1
+    # })
+
+    # increment_build_number({
+    #   build_number: 2
+    # })
+
+    build_app(
+      clean: true,
+      silent: false,
+      include_bitcode: false,
+      export_method: "app-store",
+      workspace: "TheMessagesApp.xcworkspace",
+      scheme: "TheMessagesApp"
+    )
+
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+      notify_external_testers: false,
+    )
+  end
+end
