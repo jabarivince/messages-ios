@@ -4,7 +4,7 @@
 A real time messaging app for iOS.
 
 Learning outcomes:
-- [ ] User Authentication with Firebase
+- [x] User Authentication with Firebase
 - [ ] One to One Messaging
 - [ ] Push Notifications
 - [ ] Group Messaging
