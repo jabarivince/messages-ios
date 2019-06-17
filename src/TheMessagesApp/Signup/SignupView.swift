@@ -7,7 +7,7 @@
 
 import UIKit
 
-class SignUpView: UIView {
+class SignupView: UIView {
     var submitAction: (() -> Void)?
     var cancelAction: (() -> Void)?
     
@@ -62,7 +62,7 @@ class SignUpView: UIView {
     }
 }
 
-extension SignUpView {
+extension SignupView {
     func setupViews() {
         let stackView = createStackView(views: [nameTextField,
                                                 emailTextField,
@@ -91,7 +91,7 @@ extension SignUpView {
 }
 
 
-extension SignUpView {
+extension SignupView {
     @objc func handleSubmit() {
         submitAction?()
     }

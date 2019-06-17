@@ -1,0 +1,15 @@
+//
+//  SignupSubmissionRequest.swift
+//  TheMessagesApp
+//
+//  Created by jabari on 6/17/19.
+//
+
+import Foundation
+
+struct SignupSubmissionRequest: Equatable, Hashable {
+    let email: String
+    let password: String
+    let confirmPassword: String
+    let name: String
+}

@@ -7,19 +7,13 @@
 
 import UIKit
 
-class MainController: UIViewController {
-    let authenticationService: AuthenticationService = DefaultAuthenticationService()
-
-    var user: User? {
-        didSet {
-            navigationItem.title = user?.name ?? ""
-        }
-    }
-    
+class HomeViewController: CoordinatedViewController<HomeCoordinator> {
     override func viewDidLoad() {
         super.viewDidLoad()
+        addSubscribers()
         view.backgroundColor = .white
         
+        // TODO - Upgrade minimum version to iOS 12
         if #available(iOS 11.0, *) {
             navigationController?.navigationBar.prefersLargeTitles = true
         }
@@ -28,19 +22,20 @@ class MainController: UIViewController {
                                                             style: .plain,
                                                             target: self,
                                                             action: #selector(logout))
-        fetchUserInfo()
+        coordinator.emit(HomeViewDidLoadEvent())
+    }
+}
+
+private extension HomeViewController {
+    func addSubscribers() {
+        // TODO - Add dispose bag
+        
+        let _ = coordinator.title.subscribe() { [weak self] event in
+            self?.navigationItem.title = event.element
+        }
     }
     
     @objc func logout() {
-        authenticationService.logout()
-        let loginController = UINavigationController(rootViewController: LoginController())
-        present(loginController, animated: true, completion: nil)
-    }
-    
-    func fetchUserInfo() {
-        authenticationService.getUser() { [weak self] user in
-            guard let self = self else { return }
-            self.user = user
-        }
+        coordinator.emit(HomeLogoutButtonTappedEvent())
     }
 }

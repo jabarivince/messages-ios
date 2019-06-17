@@ -11,8 +11,8 @@ import Firebase
 protocol AuthenticationService: class {
     var userIsLoggedIn: Bool { get }
     func getUser(completion: ((User?) -> Void)?)
-    func createUser(email: String, password: String, name: String, completion: (() -> Void)?)
-    func login(email: String, password: String, completion: (() -> Void)?)
+    func createUser(from request: SignupSubmissionRequest, completion: ((Error?) -> Void)?)
+    func login(email: String, password: String, completion: ((Error?) -> Void)?)
     func logout()
 }
 
@@ -31,19 +31,24 @@ class DefaultAuthenticationService: AuthenticationService {
         return (uid1 ?? uid2) ?? nil
     }
     
-    func createUser(email: String, password: String, name: String, completion: (() -> Void)?) {
+    func createUser(from request: SignupSubmissionRequest, completion: ((Error?) -> Void)?) {
         let userData: [String: Any] = [
-            "name": name
+            "name": request.name
         ]
         
-        Auth.auth().createUser(withEmail: email, password: password) { (result, err) in
-            if let err = err {
-                print(err.localizedDescription)
+        if request.password != request.confirmPassword {
+//            let error = Error("Passwords must match")
+//            completion?(error)
+        }
+        
+        Auth.auth().createUser(withEmail: request.email, password: request.password) { [weak self] (result, error) in
+            if let err = error {
+                completion?(err)
             } else {
                 guard let uid = result?.user.uid else { return }
-                self.ref.child("users/\(uid)").setValue(userData)
-                self.logout()
-                completion?()
+                self?.ref.child("users/\(uid)").setValue(userData)
+                self?.logout()
+                completion?(nil)
             }
         }
     }
@@ -62,18 +67,18 @@ class DefaultAuthenticationService: AuthenticationService {
         }
     }
     
-    func login(email: String, password: String, completion: (() -> Void)?) {
+    func login(email: String, password: String, completion: ((Error?) -> Void)?) {
         Auth.auth().signIn(withEmail: email, password: password) { [weak self] (user, error) in
             guard let self = self else { return }
 
             if let err = error {
-                print(err.localizedDescription)
+                completion?(err)
                 
             } else if let uid = user?.user.uid {
                 self.persistenceService.set(.currentUserId, value: uid)
-                completion?()
+                completion?(nil)
             } else {
-                // error care
+                // error case
             }
         }
     }

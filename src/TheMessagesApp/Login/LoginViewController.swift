@@ -7,9 +7,8 @@
 
 import UIKit
 
-class LoginController: UIViewController {
-    var loginView: LoginView!
-    let authenticationService: AuthenticationService = DefaultAuthenticationService()
+class LoginViewController: CoordinatedViewController<LoginCoordinator> {
+    private var loginView: LoginView!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -20,7 +19,9 @@ class LoginController: UIViewController {
         super.viewWillAppear(animated)
         navigationController?.navigationBar.isHidden = true
     }
-    
+}
+
+private extension LoginViewController {
     func setupView() {
         loginView = LoginView(frame: view.frame)
         loginView.loginAction = loginPressed
@@ -42,15 +43,10 @@ class LoginController: UIViewController {
             let password = loginView.passwordTextField.text
         else { return }
         
-        authenticationService.login(email: email, password: password) { [weak self] in
-            guard let self = self else { return }
-            let mainController = UINavigationController(rootViewController: MainController())
-            self.present(mainController, animated: true, completion: nil)
-        }
+        coordinator.emit(LoginSubmissionEvent(email: email, password: password))
     }
     
     func signupPressed() {
-        let signUpController = SignUpController()
-        present(signUpController, animated: true, completion: nil)
+        coordinator.emit(LoginSignupButtonTappedEvent())
     }
 }

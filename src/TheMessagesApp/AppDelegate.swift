@@ -19,8 +19,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.makeKeyAndVisible()
         window?.rootViewController = DefaultAuthenticationService().userIsLoggedIn ?
-            UINavigationController(rootViewController: MainController()) :
-            UINavigationController(rootViewController: LoginController())
+            UINavigationController(rootViewController: HomeViewController()) :
+            UINavigationController(rootViewController: LoginViewController())
         
         return true
     }
