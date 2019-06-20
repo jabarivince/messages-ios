@@ -6,20 +6,26 @@
 //
 
 import UIKit
+import Firebase
 
-class LoginCoordinator: Coordinator {
-    let authenticationService = DefaultAuthenticationService()
+class LoginCoordinator: Coordinator<LoginViewModel> {
+    let authenticationService = DefaultAuthenticationService.shared
     
     required init(_ viewController: UIViewController) {
         super.init(viewController)
         
         observe(LoginSubmissionEvent.self) { [weak self] event in
-            self?.authenticationService.login(email: event.email, password: event.password) { [weak self] error in
+            self?.authenticationService.login(email: event.email, password: event.password) { [weak self] user, error in
                 if let error = error {
                     viewController.alert(error.localizedDescription, title: "Oops!")
                 } else {
-                    let mainController = UINavigationController(rootViewController: HomeViewController())
-                    self?.viewController.present(mainController, animated: true, completion: nil)
+                    if let user = user {
+                        let channelsController = UINavigationController(rootViewController: ChannelsViewController(currentUser: user))
+                        self?.viewController.present(channelsController, animated: true, completion: nil)
+                    } else {
+                        // Error
+                    }
+                    
                 }
             }
         }
@@ -36,4 +42,5 @@ struct LoginSubmissionEvent: ActionEvent {
     let password: String
 }
 
+struct LoginViewModel: ViewModel {}
 struct LoginSignupButtonTappedEvent: ActionEvent {}

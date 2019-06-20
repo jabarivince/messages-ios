@@ -7,11 +7,13 @@
 
 import UIKit
 
-class LoginViewController: CoordinatedViewController<LoginCoordinator> {
+class LoginViewController: UIViewController {
     private var loginView: LoginView!
+    var coordinator: LoginCoordinator!
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        coordinator = LoginCoordinator(self)
         setupView()
     }
     

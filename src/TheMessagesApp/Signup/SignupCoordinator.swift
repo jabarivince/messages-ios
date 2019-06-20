@@ -7,8 +7,8 @@
 
 import UIKit
 
-class SignupCoordinator: Coordinator {
-    let authenticationService = DefaultAuthenticationService()
+class SignupCoordinator: Coordinator<SignupViewModel> {
+    let authenticationService = DefaultAuthenticationService.shared
     
     required init(_ viewController: UIViewController) {
         super.init(viewController)
@@ -30,6 +30,7 @@ class SignupCoordinator: Coordinator {
     }
 }
 
+struct SignupViewModel: ViewModel {}
 struct SignupCancelEvent: ActionEvent {}
 
 struct SignupSubmissionEvent: ActionEvent {

@@ -10,25 +10,19 @@ import Firebase
 
 protocol AuthenticationService: class {
     var userIsLoggedIn: Bool { get }
-    func getUser(completion: ((User?) -> Void)?)
+    func getUser(completion: ((LocalUser?, Error?) -> Void)?)
     func createUser(from request: SignupSubmissionRequest, completion: ((Error?) -> Void)?)
-    func login(email: String, password: String, completion: ((Error?) -> Void)?)
+    func login(email: String, password: String, completion: ((User?, Error?) -> Void)?)
     func logout()
 }
 
 class DefaultAuthenticationService: AuthenticationService {
-    var persistenceService: PersistenceService
-    var ref: DatabaseReference
+    internal var persistenceService: PersistenceService
+    internal var ref: DatabaseReference
+    static let shared = DefaultAuthenticationService()
     
     var userIsLoggedIn: Bool {
         return persistenceService.get(.currentUserId) != nil
-    }
-    
-    var currentUserId: String? {
-        let uid1 = Auth.auth().currentUser?.uid
-        let uid2: String? = persistenceService.get(.currentUserId) as? String? ?? nil
-        
-        return (uid1 ?? uid2) ?? nil
     }
     
     func createUser(from request: SignupSubmissionRequest, completion: ((Error?) -> Void)?) {
@@ -37,8 +31,8 @@ class DefaultAuthenticationService: AuthenticationService {
         ]
         
         if request.password != request.confirmPassword {
-//            let error = Error("Passwords must match")
-//            completion?(error)
+            let error = SignupError("Passwords must match")
+            completion?(error)
         }
         
         Auth.auth().createUser(withEmail: request.email, password: request.password) { [weak self] (result, error) in
@@ -46,6 +40,7 @@ class DefaultAuthenticationService: AuthenticationService {
                 completion?(err)
             } else {
                 guard let uid = result?.user.uid else { return }
+                
                 self?.ref.child("users/\(uid)").setValue(userData)
                 self?.logout()
                 completion?(nil)
@@ -53,30 +48,36 @@ class DefaultAuthenticationService: AuthenticationService {
         }
     }
     
-    func getUser(completion: ((User?) -> Void)?) {
-        guard let uid = currentUserId else { return }
-
-        ref.child("users").child(uid).observeSingleEvent(of: .value) { (snapshot) in
+    func getUser(completion: ((LocalUser?, Error?) -> Void)?) {
+        guard let user = Auth.auth().currentUser else {
+            completion?(nil, GetUserError("No id for current user"))
+            return
+        }
+        
+        ref.child("users").child(user.uid).observeSingleEvent(of: .value) { (snapshot) in
             guard
                 let data = snapshot.value as? NSDictionary,
                 let username = data["name"] as? String
-            else { return }
+            else {
+                completion?(nil, GetUserError("Malformed data returned from service"))
+                return
+            }
         
-            let user = User(name: username, uid: uid)
-            completion?(user)
+            let user = LocalUser(name: username, uid: user.uid, user: user)
+            completion?(user, nil)
         }
     }
     
-    func login(email: String, password: String, completion: ((Error?) -> Void)?) {
-        Auth.auth().signIn(withEmail: email, password: password) { [weak self] (user, error) in
+    func login(email: String, password: String, completion: ((User?, Error?) -> Void)?) {
+        Auth.auth().signIn(withEmail: email, password: password) { [weak self] (result, error) in
             guard let self = self else { return }
 
             if let err = error {
-                completion?(err)
+                completion?(nil, err)
                 
-            } else if let uid = user?.user.uid {
-                self.persistenceService.set(.currentUserId, value: uid)
-                completion?(nil)
+            } else if let user = result?.user {
+                self.persistenceService.set(.currentUserId, value: user.uid)
+                completion?(user, nil)
             } else {
                 // error case
             }
@@ -86,15 +87,18 @@ class DefaultAuthenticationService: AuthenticationService {
     func logout() {
         do {
             try Auth.auth().signOut()
-        } catch let err {
-            print(err.localizedDescription)
+        } catch let error {
+            print(error.localizedDescription)
         }
         
         persistenceService.set(.currentUserId, value: nil)
     }
     
-    init() {
+    private init() {
         persistenceService = DefaultPersistenceService.shared
         ref = Database.database().reference()
     }
 }
+
+class SignupError: CustomError {}
+class GetUserError: CustomError {}

@@ -7,11 +7,13 @@
 
 import UIKit
 
-class SignupViewController: CoordinatedViewController<SignupCoordinator> {
+class SignupViewController: UIViewController {
     var signUpView: SignupView!
+    var coordinator: SignupCoordinator!
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        coordinator = SignupCoordinator(self)
         setupViews()
     }
 }
@@ -26,22 +28,10 @@ private extension SignupViewController {
     }
     
     func submitPressed() {
-        
-        // NOTE - guard is unnecesary because textfield just returns ""
-        // if the text field is empty. Might as well make the fields on
-        // the requestion optional and do data validation in the service
-        
-        guard
-            let email = signUpView.emailTextField.text,
-            let password = signUpView.passwordTextField.text,
-            let confirmPassword = signUpView.confirmPasswordTextField.text,
-            let name = signUpView.nameTextField.text
-        else { return }
-        
-        let request = SignupSubmissionRequest(email: email,
-                                              password: password,
-                                              confirmPassword: confirmPassword,
-                                              name: name)
+        let request = SignupSubmissionRequest(email: signUpView.emailTextField.text,
+                                              password: signUpView.passwordTextField.text,
+                                              confirmPassword: signUpView.confirmPasswordTextField.text,
+                                              name: signUpView.nameTextField.text)
         
         coordinator.emit(SignupSubmissionEvent(request: request))
     }
