@@ -5,7 +5,7 @@ targets:
   TheMessagesApp:
     type: application
     platform: iOS
-    deploymentTarget: "10.0"
+    deploymentTarget: "11.0"
     sources: [TheMessagesApp]
     dependencies:
       - sdk: libc++.tbd
@@ -14,7 +14,7 @@ targets:
   TheMessagesAppTests:
     type: bundle.unit-test
     platform: iOS
-    deploymentTarget: "10.0"
+    deploymentTarget: "11.0"
     sources:
       - path: TheMessagesAppTests
     dependencies:

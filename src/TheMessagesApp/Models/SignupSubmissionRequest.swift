@@ -12,4 +12,11 @@ struct SignupSubmissionRequest: Equatable, Hashable {
     let password: String
     let confirmPassword: String
     let name: String
+    
+    init(email: String?, password: String?, confirmPassword: String?, name: String?) {
+        self.email = email ?? ""
+        self.password = password ?? ""
+        self.confirmPassword = confirmPassword ?? ""
+        self.name = name ?? ""
+    }
 }
