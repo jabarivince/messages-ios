@@ -5,8 +5,8 @@
 //  Created by Vince G on 6/1/19.
 //
 
-import Foundation
 import Firebase
+import Foundation
 
 protocol AuthenticationService: class {
     var userIsLoggedIn: Bool { get }
@@ -17,12 +17,12 @@ protocol AuthenticationService: class {
 }
 
 class DefaultAuthenticationService: AuthenticationService {
-    internal var persistenceService: PersistenceService
-    internal var ref: DatabaseReference
     static let shared = DefaultAuthenticationService()
+    private let ref = Database.database().reference()
+    private let auth = Auth.auth()
     
     var userIsLoggedIn: Bool {
-        return persistenceService.get(.currentUserId) != nil
+        return auth.currentUser != nil
     }
     
     func createUser(from request: SignupSubmissionRequest, completion: ((Error?) -> Void)?) {
@@ -31,11 +31,11 @@ class DefaultAuthenticationService: AuthenticationService {
         ]
         
         if request.password != request.confirmPassword {
-            let error = SignupError("Passwords must match")
+            let error = Exception("Passwords must match")
             completion?(error)
         }
         
-        Auth.auth().createUser(withEmail: request.email, password: request.password) { [weak self] (result, error) in
+        auth.createUser(withEmail: request.email, password: request.password) { [weak self] (result, error) in
             if let err = error {
                 completion?(err)
             } else {
@@ -49,8 +49,8 @@ class DefaultAuthenticationService: AuthenticationService {
     }
     
     func getUser(completion: ((LocalUser?, Error?) -> Void)?) {
-        guard let user = Auth.auth().currentUser else {
-            completion?(nil, GetUserError("No id for current user"))
+        guard let user = auth.currentUser else {
+            completion?(nil, Exception("No id for current user"))
             return
         }
         
@@ -59,46 +59,33 @@ class DefaultAuthenticationService: AuthenticationService {
                 let data = snapshot.value as? NSDictionary,
                 let username = data["name"] as? String
             else {
-                completion?(nil, GetUserError("Malformed data returned from service"))
+                completion?(nil, Exception("Malformed data returned from service"))
                 return
             }
         
-            let user = LocalUser(name: username, uid: user.uid, user: user)
+            let user = LocalUser(name: username, user: user,uid: user.uid)
             completion?(user, nil)
         }
     }
     
     func login(email: String, password: String, completion: ((User?, Error?) -> Void)?) {
-        Auth.auth().signIn(withEmail: email, password: password) { [weak self] (result, error) in
-            guard let self = self else { return }
-
+        auth.signIn(withEmail: email, password: password) { (result, error) in
             if let err = error {
                 completion?(nil, err)
                 
             } else if let user = result?.user {
-                self.persistenceService.set(.currentUserId, value: user.uid)
                 completion?(user, nil)
-            } else {
-                // error case
             }
         }
     }
     
     func logout() {
         do {
-            try Auth.auth().signOut()
+            try auth.signOut()
         } catch let error {
             print(error.localizedDescription)
         }
-        
-        persistenceService.set(.currentUserId, value: nil)
     }
     
-    private init() {
-        persistenceService = DefaultPersistenceService.shared
-        ref = Database.database().reference()
-    }
+    private init() {}
 }
-
-class SignupError: CustomError {}
-class GetUserError: CustomError {}

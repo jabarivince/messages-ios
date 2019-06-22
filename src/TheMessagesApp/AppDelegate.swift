@@ -16,13 +16,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         FirebaseApp.configure()
         
+        let loginViewController = LoginViewController()
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.makeKeyAndVisible()
+        window?.rootViewController = UINavigationController(rootViewController: loginViewController)
         
-        if let user = Auth.auth().currentUser {
-            window?.rootViewController = UINavigationController(rootViewController: ChannelsViewController(currentUser: user))
-        } else {
-            window?.rootViewController =  UINavigationController(rootViewController: LoginViewController())
+        if DefaultAuthenticationService.shared.userIsLoggedIn {
+            let channelsViewController = UINavigationController(rootViewController: ChannelsViewController())
+            loginViewController.present(channelsViewController, animated: false, completion: nil)
         }
         
         return true

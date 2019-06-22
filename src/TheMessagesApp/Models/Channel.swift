@@ -19,11 +19,9 @@ struct Channel: Hashable {
     id = document.documentID
     self.name = name
   }
-  
 }
 
 extension Channel: DatabaseRepresentation {
-  
   var representation: [String : Any] {
     var rep = ["name": name]
     
@@ -33,11 +31,9 @@ extension Channel: DatabaseRepresentation {
     
     return rep
   }
-  
 }
 
 extension Channel: Comparable {
-  
   static func == (lhs: Channel, rhs: Channel) -> Bool {
     return lhs.id == rhs.id
   }
@@ -45,5 +41,4 @@ extension Channel: Comparable {
   static func < (lhs: Channel, rhs: Channel) -> Bool {
     return lhs.name < rhs.name
   }
-
 }
