@@ -9,6 +9,6 @@ import Firebase
 
 struct LocalUser {
     var name: String?
-    var uid: String?
     var user: User
+    var uid: String? // TODO - Convert to computed property
 }

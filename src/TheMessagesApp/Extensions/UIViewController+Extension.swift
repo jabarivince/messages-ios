@@ -40,7 +40,7 @@ extension UIViewController {
                        placeholder: String?,
                        confirmButtonText: String = "Ok",
                        cancelButtonText: String = "Cancel",
-                       completion: @escaping (String?) -> Void) {
+                       completion: @escaping (String) -> Void) {
         
         let ac = UIAlertController(title: title, message: message, preferredStyle: .alert)
         ac.addAction(UIAlertAction(title: cancelButtonText, style: .cancel, handler: nil))
@@ -55,7 +55,7 @@ extension UIViewController {
         }
 
         let createAction = UIAlertAction(title: confirmButtonText, style: .default, handler: { _ in
-            completion(ac.textFields?.first?.text)
+            completion(ac.textFields?.first?.text ?? "")
         })
         
         ac.addAction(createAction)

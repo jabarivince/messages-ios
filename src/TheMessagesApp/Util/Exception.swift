@@ -7,7 +7,7 @@
 
 import Foundation
 
-class CustomError: LocalizedError {
+struct Exception: LocalizedError {
     var errorDescription: String? {
         return message
     }

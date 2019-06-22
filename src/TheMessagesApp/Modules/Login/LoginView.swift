@@ -5,48 +5,40 @@
 //  Created by Vince G on 6/1/19.
 //
 
+import RxCocoa
 import UIKit
 
 class LoginView: UIView {
-    var loginAction: (() -> Void)?
-    var signupAction: (() -> Void)?
-    
-    let backgroundImageView: UIImageView = {
+    private let backgroundImageView: UIImageView = {
         let iv = UIImageView()
         iv.image = UIImage(named: "background")
         iv.contentMode = .scaleAspectFill
         return iv
     }()
     
-    let emailTextField: UITextField = {
+    private let emailTextField: UITextField = {
         let tf = UITextField(placeHolder: "Email")
         return tf
     }()
     
-    let passwordTextField: UITextField = {
+    private let passwordTextField: UITextField = {
         let tf = UITextField(placeHolder: "Password")
         tf.isSecureTextEntry = true
         return tf
     }()
     
-    let loginButton: UIButton = {
+    private let loginButton: UIButton = {
         let button = UIButton(title: "Login", borderColor: .greenBorderColor)
-        button.addTarget(self, action: #selector(handleLogin), for: .touchUpInside)
         return button
     }()
     
-    let signupButton: UIButton = {
+    private let signupButton: UIButton = {
         let button = UIButton(title: "SignUp", borderColor: .redBorderColor)
-        button.addTarget(self, action: #selector(handleSignup), for: .touchUpInside)
         return button
     }()
     
     override init(frame: CGRect) {
         super.init(frame: frame)
-        setupViews()
-    }
-    
-    func setupViews() {
         let stackView = createStackView(views: [emailTextField,
                                                 passwordTextField,
                                                 loginButton,
@@ -55,14 +47,17 @@ class LoginView: UIView {
         addSubview(backgroundImageView)
         addSubview(stackView)
         
-        backgroundImageView.setAnchor(top: topAnchor,
-                                      left: leftAnchor,
-                                      bottom: bottomAnchor,
-                                      right: rightAnchor,
-                                      paddingTop: 0,
-                                      paddingLeft: 0,
-                                      paddingBottom: 0,
-                                      paddingRight: 0)
+        backgroundImageView.setAnchor(
+            top: topAnchor,
+            left: leftAnchor,
+            bottom: bottomAnchor,
+            right: rightAnchor,
+            paddingTop: 0,
+            paddingLeft: 0,
+            paddingBottom: 0,
+            paddingRight: 0
+        )
+        
         stackView.setAnchor(width: frame.width - 60, height: 210)
         
         NSLayoutConstraint.activate([
@@ -77,11 +72,24 @@ class LoginView: UIView {
 }
 
 extension LoginView {
-    @objc func handleLogin() {
-        loginAction?()
+    var email: String {
+        return emailTextField.text ?? ""
     }
     
-    @objc func handleSignup() {
-        signupAction?()
+    var password: String {
+        return passwordTextField.text ?? ""
+    }
+    
+    var loginButtonTap: ControlEvent<Void> {
+        return loginButton.rx.tap
+    }
+    
+    var signupButtonTap: ControlEvent<Void> {
+        return signupButton.rx.tap
+    }
+    
+    func clear() {
+        emailTextField.text = ""
+        passwordTextField.text = ""
     }
 }
