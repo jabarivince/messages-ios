@@ -14,9 +14,7 @@ class LoginCoordinator: Coordinator<LoginViewModel> {
     required init(_ viewController: UIViewController) {
         super.init(viewController)
         
-        observe(LoginSubmissionEvent.self) { [weak self] event in
-            guard let self = self else { return }
-            
+        observe(LoginSubmissionEvent.self) { [unowned self] event in
             self.authenticationService.login(email: event.email, password: event.password) { (user, error) in
                 if let error = error {
                     self.alert(error)
@@ -27,8 +25,8 @@ class LoginCoordinator: Coordinator<LoginViewModel> {
             }
         }
         
-        observe(LoginSignupButtonTappedEvent.self) { [weak self] _ in
-            self?.present(SignupViewController.self)
+        observe(LoginSignupButtonTappedEvent.self) { [unowned self] _ in
+            self.present(SignupViewController.self)
         }
     }
 }
@@ -41,4 +39,5 @@ struct LoginSubmissionEvent: ActionEvent {
 struct LoginViewModel: ViewModel {
     let clear = PublishSubject<Void>()
 }
+
 struct LoginSignupButtonTappedEvent: ActionEvent {}

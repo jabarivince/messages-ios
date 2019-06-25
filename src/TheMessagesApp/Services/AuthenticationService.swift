@@ -18,8 +18,8 @@ protocol AuthenticationService: class {
 
 class DefaultAuthenticationService: AuthenticationService {
     static let shared = DefaultAuthenticationService()
-    private let ref = Database.database().reference()
-    private let auth = Auth.auth()
+    private let ref   = Database.database().reference()
+    private let auth  = Auth.auth()
     
     var userIsLoggedIn: Bool {
         return auth.currentUser != nil
@@ -80,11 +80,7 @@ class DefaultAuthenticationService: AuthenticationService {
     }
     
     func logout() {
-        do {
-            try auth.signOut()
-        } catch let error {
-            print(error.localizedDescription)
-        }
+        try? auth.signOut()
     }
     
     private init() {}

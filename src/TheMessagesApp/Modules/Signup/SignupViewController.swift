@@ -10,8 +10,8 @@ import UIKit
 
 class SignupViewController: UIViewController {
     private lazy var coordinator = SignupCoordinator(self)
-    private lazy var signUpView = SignupView(frame: view.frame)
-    private let disposeBag = DisposeBag()
+    private lazy var signUpView  = SignupView(frame: view.frame)
+    private var disposeBag: DisposeBag?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -22,22 +22,25 @@ class SignupViewController: UIViewController {
 
 private extension SignupViewController {
     func setupObservers() {
-        disposeBag.insert(
-            signUpView.cancelButtonTap.bind(to: coordinator.cancel),
+        disposeBag = DisposeBag(disposing:
             
+            // Submit button tapped
             signUpView.submitButtonTap.subscribe() { [unowned self] _ in
-                self.submitPressed()
+                let signUpView = self.signUpView
+                self.coordinator.emit(
+                    SignupSubmitButtonTapped(request: SignupSubmissionRequest(
+                        email: signUpView.email,
+                        password: signUpView.password,
+                        confirmPassword: signUpView.confirmPassword,
+                        name: signUpView.name
+                    ))
+                )
+            },
+            
+            // Cancel button tapped
+            signUpView.cancelButtonTap.subscribe() { [unowned self] _ in
+                self.coordinator.emit(SignupCancelButtonTapped())
             }
         )
-    }
-    
-    func submitPressed() {
-        coordinator.submit.asObserver().onNext(
-            SignupSubmissionRequest(
-                email: signUpView.email,
-                password: signUpView.password,
-                confirmPassword: signUpView.confirmPassword,
-                name: signUpView.name
-        ))
     }
 }

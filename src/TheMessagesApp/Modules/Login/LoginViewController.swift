@@ -9,9 +9,9 @@ import RxSwift
 import UIKit
 
 class LoginViewController: UIViewController {
-    lazy private var loginView = LoginView(frame: view.frame)
+    lazy private var loginView   = LoginView(frame: view.frame)
     lazy private var coordinator = LoginCoordinator(self)
-    lazy private var disposeBag = DisposeBag()
+    lazy private var disposeBag  = DisposeBag()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -39,20 +39,18 @@ class LoginViewController: UIViewController {
 private extension LoginViewController {
     func setupObservers() {
         disposeBag.insert(
-            loginView.loginButtonTap.subscribe() { [weak self] event in
-                guard let self = self else { return }
+            loginView.loginButtonTap.subscribe() { [unowned self] event in
                 let email = self.loginView.email
                 let password = self.loginView.password
-                
                 self.coordinator.emit(LoginSubmissionEvent(email: email, password: password))
             },
             
-            loginView.signupButtonTap.subscribe() { [weak self] event in
-                self?.coordinator.emit(LoginSignupButtonTappedEvent())
+            loginView.signupButtonTap.subscribe() { [unowned self] event in
+                self.coordinator.emit(LoginSignupButtonTappedEvent())
             },
             
-            coordinator.viewModel.clear.subscribe() { [weak self] _ in
-                self?.loginView.clear()
+            coordinator.viewModel.clear.subscribe() { [unowned self] _ in
+                self.loginView.clear()
             }
         )
     }
