@@ -39,11 +39,8 @@ class LoginView: UIView {
     
     override init(frame: CGRect) {
         super.init(frame: frame)
-        let stackView = createStackView(views: [emailTextField,
-                                                passwordTextField,
-                                                loginButton,
-                                                signupButton])
-        
+        let views = [emailTextField, passwordTextField, loginButton, signupButton]
+        let stackView = createStackView(views: views)
         addSubview(backgroundImageView)
         addSubview(stackView)
         

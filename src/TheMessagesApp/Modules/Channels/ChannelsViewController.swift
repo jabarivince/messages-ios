@@ -9,14 +9,60 @@ class ChannelsViewController: UITableViewController {
     
     init() {
         super.init(style: .plain)
-        subscribeToView()
-        subscribeToCoordinator()
+        addObservers()
     }
     
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+}
+
+// MARK:- Observers
+
+private extension ChannelsViewController {
+    func addObservers() {
+        bag.insert(
+            // Signout button tapped
+            signoutButton.rx.tap.subscribe() { [unowned self] _ in
+                self.coordinator.emit(ChannelsLogoutButtonTappedEvent())
+            },
+            
+            // Add button tapped
+            addButton.rx.tap.subscribe() { [unowned self] _ in
+                self.coordinator.emit(ChannelsAddButtonTappedEvent())
+            },
+            
+            // Title dhanged
+            coordinator.viewModel.title.asObservable().subscribe() { [unowned self] event in
+                self.title = event.element
+            },
+            
+            // Row added
+            coordinator.viewModel.addRowIndex.asObservable().subscribe() { [unowned self] event in
+                guard let index = event.element else { return }
+                self.tableView.insertRows(at: [IndexPath(row: index, section: 0)], with: .automatic)
+            },
+            
+            // Row updated
+            coordinator.viewModel.updateRowIndex.asObservable().subscribe() { [unowned self] event in
+                guard let index = event.element else { return }
+                self.tableView.reloadRows(at: [IndexPath(row: index, section: 0)], with: .automatic)
+            },
+            
+            // Row deleted
+            coordinator.viewModel.removeRowIndex.asObservable().subscribe() { [unowned self] event in
+                guard let index = event.element else { return }
+                self.tableView.beginUpdates()
+                self.tableView.deleteRows(at: [IndexPath(row: index, section: 0)], with: .automatic)
+                self.tableView.endUpdates()
+            }
+        )
+    }
+}
+
+// MARK:- UIViewController
+
+extension ChannelsViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.register(ChannelTableViewCell.self, forCellReuseIdentifier: ChannelTableViewCell.id)
@@ -35,6 +81,8 @@ class ChannelsViewController: UITableViewController {
         navigationController?.navigationBar.prefersLargeTitles = false
     }
 }
+
+// MARK:- UITableViewDelegate
 
 extension ChannelsViewController {
     override func numberOfSections(in tableView: UITableView) -> Int {
@@ -57,44 +105,5 @@ extension ChannelsViewController {
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         coordinator.emit(ChannelsChannelTappedEvent(at: indexPath))
-    }
-}
-
-private extension ChannelsViewController {
-    func subscribeToView() {
-        bag.insert(
-            signoutButton.rx.tap.subscribe() { [unowned self] _ in
-                self.coordinator.emit(ChannelsLogoutButtonTappedEvent())
-            },
-            
-            addButton.rx.tap.subscribe() { [unowned self] _ in
-                self.coordinator.emit(ChannelsAddButtonTappedEvent())
-            }
-        )
-    }
-    
-    func subscribeToCoordinator() {
-        bag.insert(
-            coordinator.viewModel.title.asObservable().subscribe() { [unowned self] event in
-                self.title = event.element
-            },
-            
-            coordinator.viewModel.addRowIndex.asObservable().subscribe() { [unowned self] event in
-                guard let index = event.element else { return }
-                self.tableView.insertRows(at: [IndexPath(row: index, section: 0)], with: .automatic)
-            },
-            
-            coordinator.viewModel.updateRowIndex.asObservable().subscribe() { [unowned self] event in
-                guard let index = event.element else { return }
-                self.tableView.reloadRows(at: [IndexPath(row: index, section: 0)], with: .automatic)
-            },
-            
-            coordinator.viewModel.removeRowIndex.asObservable().subscribe() { [unowned self] event in
-                guard let index = event.element else { return }
-                self.tableView.beginUpdates()
-                self.tableView.deleteRows(at: [IndexPath(row: index, section: 0)], with: .automatic)
-                self.tableView.endUpdates()
-            }
-        )
     }
 }

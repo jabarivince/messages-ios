@@ -23,10 +23,13 @@ class ChannelsCoordinator: Coordinator<ChannelsViewModel> {
 
 private extension ChannelsCoordinator {
     func addObservers() {
+        
+        // Firestore collection changed
         channelListener = FirestoreService.onChanges(to: .channels) { [unowned self] change in
             self.respond(to: change)
         }
         
+        // View loaded
         observe(ChannelsViewDidLoadEvent.self) { [unowned self] _ in
             if !DefaultAuthenticationService.shared.userIsLoggedIn {
                 let message = "You must be logged in to see your conversations"
@@ -39,6 +42,15 @@ private extension ChannelsCoordinator {
             }
         }
         
+        // Logout button tapped
+        observe(ChannelsLogoutButtonTappedEvent.self) { [unowned self] event in
+            self.prompt("Are you sure you want to sign out?", continueButtonText: "Sign Out") { [unowned self] in
+                DefaultAuthenticationService.shared.logout()
+                self.dismiss()
+            }
+        }
+        
+        // Add button tapped
         observe(ChannelsAddButtonTappedEvent.self) { [unowned self] event in
             let title = "Create a new Channel"
             let placeholder = "Channel name"
@@ -53,13 +65,7 @@ private extension ChannelsCoordinator {
             }
         }
         
-        observe(ChannelsLogoutButtonTappedEvent.self) { [unowned self] event in
-            self.prompt("Are you sure you want to sign out?", continueButtonText: "Sign Out") { [unowned self] in
-                DefaultAuthenticationService.shared.logout()
-                self.dismiss()
-            }
-        }
-        
+        // Row tapped
         observe(ChannelsChannelTappedEvent.self) { [unowned self] event in
             let channel = self.viewModel.channel(at: event.index)
             print("TAPPED \(channel.name)")
@@ -96,11 +102,11 @@ private extension ChannelsCoordinator {
 }
 
 struct ChannelsViewModel: ViewModel {
-    fileprivate var channels: [Channel] = []
-    let title = PublishRelay<String>()
-    let addRowIndex = PublishRelay<Int>()
+    let title          = PublishRelay<String>()
+    let addRowIndex    = PublishRelay<Int>()
     let updateRowIndex = PublishRelay<Int>()
     let removeRowIndex = PublishRelay<Int>()
+    fileprivate var channels: [Channel] = []
     
     var channelCount: Int {
         return channels.count
@@ -118,7 +124,6 @@ struct ChannelsViewModel: ViewModel {
 struct ChannelsViewDidLoadEvent: ActionEvent {}
 struct ChannelsAddButtonTappedEvent: ActionEvent {}
 struct ChannelsLogoutButtonTappedEvent: ActionEvent {}
-
 struct ChannelsChannelTappedEvent: ActionEvent {
     let index: IndexPath
     
