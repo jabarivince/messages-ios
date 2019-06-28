@@ -1,23 +1,23 @@
 language: objective-c
 osx_image: xcode10.2
+xcode_workspace: TheMessagesApp.xcworkspace
+xcode_scheme: TheMessagesApp
+xcode_destination: platform=iOS Simulator,OS=12.0,name=iPhone SE
 
 before_cache:
-  - brew cleanup
+- brew cleanup
 
 cache:
   directories:
-    - src/Pods
-    - $HOME/Library/Caches/Homebrew
+  - src/Pods
+  - "$HOME/Library/Caches/Homebrew"
 
 before_install:
-  - curl -o src/TheMessagesApp/GoogleService-Info.plist -X GET "https://firebasestorage.googleapis.com/v0/b/messages-3d119.appspot.com/o/app-config%2FGoogleService-Info.plist?alt=media&token=${FIREBASE_CONFIG_FILE_TOKEN}"
-  - gem install cocoapods --pre
-  - pod repo update
-  - cd src
-  - brew install xcodegen
-  - bundle install
-  - xcodegen
-  - pod install
-
-install:
-  - fastlane tests
+- cd src
+- curl -o TheMessagesApp/GoogleService-Info.plist -X GET "https://firebasestorage.googleapis.com/v0/b/messages-3d119.appspot.com/o/app-config%2FGoogleService-Info.plist?alt=media&token=${FIREBASE_CONFIG_FILE_TOKEN}"
+- gem install cocoapods --pre
+- pod repo update
+- brew install xcodegen
+- bundle install
+- xcodegen
+- pod install
