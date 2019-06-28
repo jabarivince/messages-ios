@@ -1,6 +1,11 @@
 language: objective-c
 osx_image: xcode10.2
 
+podfile: src/Podfile
+xcode_workspace: src/TheMessagesApp.xcworkspace
+xcode_scheme: notes
+xcode_destination: platform=iOS Simulator,OS=10.0,name=iPhone SE
+
 before_cache:
   - brew cleanup
 
@@ -17,7 +22,7 @@ before_install:
   - brew install xcodegen
   - bundle install
   - xcodegen
-  - pod install
+  # - pod install
 
-install:
-  - fastlane tests
+# install:
+#   - fastlane tests
