@@ -4,7 +4,7 @@ osx_image: xcode10.2
 podfile: src/Podfile
 xcode_workspace: src/TheMessagesApp.xcworkspace
 xcode_scheme: notes
-xcode_destination: platform=iOS Simulator,OS=10.0,name=iPhone SE
+xcode_destination: platform=iOS Simulator,OS=12.0,name=iPhone SE
 
 before_cache:
   - brew cleanup
@@ -22,6 +22,7 @@ before_install:
   - brew install xcodegen
   - bundle install
   - xcodegen
+  - cd ..
   # - pod install
 
 # install:
