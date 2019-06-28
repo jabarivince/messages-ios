@@ -8,7 +8,6 @@ before_cache:
 - brew cleanup
 
 cache:
-  bundler: true
   directories:
   - src/Pods
   - "$HOME/Library/Caches/Homebrew"
