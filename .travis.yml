@@ -3,12 +3,15 @@ osx_image: xcode10.2
 xcode_workspace: TheMessagesApp.xcworkspace
 xcode_scheme: TheMessagesApp
 xcode_destination: platform=iOS Simulator,OS=12.0,name=iPhone SE
+
 before_cache:
 - brew cleanup
+
 cache:
   directories:
   - src/Pods
   - "$HOME/Library/Caches/Homebrew"
+
 before_install:
 - cd src
 - curl -o TheMessagesApp/GoogleService-Info.plist -X GET "https://firebasestorage.googleapis.com/v0/b/messages-3d119.appspot.com/o/app-config%2FGoogleService-Info.plist?alt=media&token=${FIREBASE_CONFIG_FILE_TOKEN}"
@@ -24,4 +27,4 @@ notifications:
     on_success: always
     on_failure: always
     rooms:
-      - secure: OgWclqtFyaSCmCzVJGmVMWYocDj9/9JOFqyBzTcOczA0SxVVIisD3Em3i+C/k9LSafQdIK1HxwdhThgQyDHGlAsrRxnFNBdbW2mvbe8lXAYJOoBXjZrUfzBIstWxNpkP39ENv5VgKiYUGWDkv97PgE5Cv4EPdf2AYQsUij6K97/5725EUhTKbyrroC5xw+GHXTi8KpU6Ur6PZ63Qu1ez3fbalL8/+FC3GgkgGYIt4VuP55Cftn5lrC9YOF3bVB4tWHcZrga3z/auEzJRKQvaDTANMbQm5ipu/9Uje14CXGeeMlmxDuexixQve3ae7SuPfTOkIe7WOSWPEoQPq/meXlF2lWt06YfFbQFTemk6L5ZsIybAzuA1ZbrKglB1NXlMmCT4VJ1Zk//zK8yMlrOjrqslpKXjRUzT6Ss1ro+tnqqxpJJnrHBRfdGFZA6B7/Y1puCRbadmA7tIG4j9fLOSmdKvNHtnPHwBEEjoVcoG0cmKdbOTONrwrsKKvizcftAU/5Vu/zU+no/dhRkXvZCThUtG8CYbAAY99GeWH9OsWribpHBOFAN5eH7vbfjFOWtFHH3RET7HGLbirdkBKrQs/ZNHQhB2f6JG5t0wH2wygxYGVXM3nqMMLVXj8ftkMIKSofgA5iX684AvTu2eIvV76JgWHuXsPVEAQFVmWL9gbOI=
+      secure: YDmZztLahIb06vuwqk/XyjG6b12CRSw01if6U/1h13HnWgpm960ezkR7koQJvQ6qkz4zg6R8Ix1AW2evrA0laeMSafnYFLlCxKG51T0GWe7/3DGA0qVPnINm90FMuRz0/9wUYFMu2fDWeZLWUy5LNaZJ9J0iTyM/1ZzgcjC4m6LOo5f+15W0Em2ZwSOoTIQi5KcSnO/3v9WjCqo0MBFt1vF4Djdp5tToD4ND1/uVNo9JgzeSOoOZihc4PagZCy7C/ubgvpTLYq6sgdAkA7/UHzJ/ceMPqkQG7E9rvXR2kuolD+zPCe4H6v5Qoob2K8kHd+6NZUd5uZOybpObANQJjb8/e6fHJRtpf9eg74InhbxxLjw14W+o7aPTMHUvV84YSANEocVEz3WVXqpRnYJfVrCXuWeeqptioJ6SpyzI/HOsAV2gnCppg1kPL5EHzoUSdDXnOj/2R52X7e4gy4dIl87s8NDKKYT+EvyXHIhX21Fe92hTSNhRURByKwTnP/rmr/YYXLW8H/eyu4HE53xGEQrLscj5OoFzqSbY6ViEbnQPWBFEHB3vz1TtELfS/ePKF9edDh232+zPV7kGnq3LgO60WU+1D7yoEZKR2w+gAivShycuEZuhCUI/b7XaKyN5sFjJipPK6slRVJV6KIedr7+gxfAmJS3wLEiBCwi6p/Y=
