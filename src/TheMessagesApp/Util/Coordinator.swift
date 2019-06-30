@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol ActionEvent: Hashable { }
+protocol ActionEvent {}
 
 protocol ViewModel {
     init()

@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct SignupSubmissionRequest: Equatable, Hashable {
+struct SignupSubmissionRequest {
     let email: String
     let password: String
     let confirmPassword: String

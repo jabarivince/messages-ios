@@ -6,89 +6,55 @@
 //
 
 import RxSwift
-import RxCocoa
 import Firebase
-import Photos
 import UIKit
 
 class ChatCoordinator: Coordinator<ChatViewModel> {
-    private var messageListener: ListenerRegistration?
-    private let db = Firestore.firestore()
-    private var reference: CollectionReference?
-    private let storage = Storage.storage().reference()
+    private var imageService: ImageService!
+    private var messageListener: ListenerRegistration!
+    private var collection: FirestoreService.Collection!
     private var channel: Channel!
     private var user: LocalUser!
     
-    required init(_ viewController: UIViewController) {
-        super.init(viewController)
+    convenience init(_ viewController: UIViewController, user: LocalUser, channel: Channel) {
+        self.init(viewController)
+        self.user         = user
+        self.channel      = channel
+        self.collection   = FirestoreService.Collection("channels", channel.id!, "thread")
+        self.imageService = DefaultImageService.shared
         addObservers()
     }
     
+    required init(_ viewController: UIViewController) {
+        super.init(viewController)
+    }
+    
     deinit {
-        messageListener?.remove()
+        messageListener.remove()
     }
 }
 
-private extension ChatCoordinator{
-    
+private extension ChatCoordinator {
     func addObservers() {
-        observe(ChatViewDidLoadEvent.self) { [weak self] event in
-            self?.viewModel.title.onNext(event.channel.name)
-            self?.channel = event.channel
-            self?.user = event.user
-        }
-        
-        observe(ChatViewDidLoadEvent.self) { [weak self] event in
-            guard let id = event.channel.id else { return }
+        // View loaded
+        observe(ChatViewDidLoadEvent.self) { [unowned self] event in
+            self.viewModel.title.onNext(self.channel.name)
             
-            self?.reference = self?.db.collection(["channels", id, "thread"].joined(separator: "/"))
-            self?.messageListener = self?.reference?.addSnapshotListener { querySnapshot, error in
-                guard let snapshot = querySnapshot else {
-                    print("Error listening for channel updates: \(error?.localizedDescription ?? "No error")")
-                    return
-                }
-                
-                snapshot.documentChanges.forEach { change in
-                    self?.respond(to: change)
-                }
+            self.messageListener = FirestoreService.onChanges(to: self.collection) { [weak self] change in
+                self?.respond(to: change)
             }
         }
         
-        observe(ChatChatCameraButtonPressedEvent.self) { [weak self] event in
+        // Camera button tapped
+        observe(ChatChatCameraButtonPressedEvent.self) { event in
             print("Camera button tapped")
         }
         
-        observe(ChatUploadImageEvent.self) { [weak self] event in
-            let image = event.image
-            let channel = event.channel
-            let completion = event.completion
+        // Send image
+        observe(ChatSendImageEvent.self) { [unowned self] event in
+            self.viewModel.isSendingPhoto.onNext(true)
             
-            guard let channelID = channel.id else {
-                completion(nil)
-                return
-            }
-            
-            guard let scaledImage = image.scaledToSafeUploadSize else {return}
-            guard let data = scaledImage.jpegData(compressionQuality: 0.4) else {
-                completion(nil)
-                return
-            }
-            
-            let metadata = StorageMetadata()
-            metadata.contentType = "image/jpeg"
-            
-            let imageName = [UUID().uuidString, String(Date().timeIntervalSince1970)].joined()
-            self?.storage.child(channelID).child(imageName).putData(data, metadata: metadata) { meta, error in
-                completion(meta?.downloadURL())
-            }
-        }
-        
-        observe(ChatSendImageEvent.self) { [weak self] event in
-            
-            guard let channel = self?.channel else { return }
-            self?.viewModel.isSendingPhoto.onNext(true)
-            
-            let event = ChatUploadImageEvent(image: event.image, channel: channel) { [weak self] url in
+            self.imageService.upload(image: event.image, channel: self.channel) { [weak self] url in
                 guard let self = self else { return }
                 
                 self.viewModel.isSendingPhoto.onNext(false)
@@ -98,120 +64,46 @@ private extension ChatCoordinator{
                 var message = Message(user: self.user, image: event.image)
                 message.downloadURL = url
                 
-                self.emit(ChatSaveMessageEvent(message: message))
-                self.viewModel.scrollToBottom.onNext(false)
+                self.save(message)
             }
-            
-            self?.emit(event)
         }
         
-        observe(ChatSaveMessageEvent.self) { [weak self] event in
-            self?.reference?.addDocument(data: event.message.representation) { [weak self] error in
-                if let e = error {
-                    print("Error sending message: \(e.localizedDescription)")
-                    return
-                }
-                
-                self?.viewModel.scrollToBottom.onNext(false)
-            }
+        // Save message
+        observe(ChatSaveMessageEvent.self) { [unowned self] event in
+            self.save(event.message)
+        }
+    }
+}
+
+private extension ChatCoordinator {
+    func save(_ message: Message) {
+        FirestoreService.add(message, to: collection) { [weak self] error in
+            self?.viewModel.scrollToBottom.onNext(false)
         }
     }
     
     func respond(to change: DocumentChange) {
-        guard var message = Message(document: change.document) else {
+        guard
+            change.type == .added,
+            var message = Message(document: change.document)
+        else { return }
+        
+        guard let url = message.downloadURL else {
+            viewModel.messages.onNext(message)
             return
         }
         
-        switch change.type {
-        case .added:
-            if let url = message.downloadURL {
-                downloadImage(at: url) { [weak self] image in
-                    guard let self = self else {
-                        return
-                    }
-                    guard let image = image else {
-                        return
-                    }
-                    
-                    message.image = image
-                    self.insertNewMessage(message)
-                }
-            } else {
-                insertNewMessage(message)
-            }
-        default:
-            break
+        imageService.download(from: url) { [weak self] image in
+            guard let image = image else { return }
+            message.image = image
+            self?.viewModel.messages.onNext(message)
         }
-    }
-    
-    func downloadImage(at url: URL, completion: @escaping (UIImage?) -> Void) {
-        let ref = Storage.storage().reference(forURL: url.absoluteString)
-        let megaByte = Int64(1 * 1024 * 1024)
-        
-        ref.getData(maxSize: megaByte) { data, error in
-            guard let imageData = data else {
-                completion(nil)
-                return
-            }
-            
-            completion(UIImage(data: imageData))
-        }
-    }
-    
-    func insertNewMessage(_ message: Message) {
-        viewModel.messages.onNext(message)
     }
 }
 
 struct ChatViewModel: ViewModel {
-    let messages = PublishSubject<Message>()
     let title = PublishSubject<String>()
+    let messages = PublishSubject<Message>()
     let isSendingPhoto = PublishSubject<Bool>()
     let scrollToBottom = PublishSubject<Bool>()
-}
-
-struct ChatViewDidLoadEvent: ActionEvent {
-    let channel: Channel
-    let user: LocalUser
-}
-
-struct ChatChatCameraButtonPressedEvent: ActionEvent {}
-
-struct ChatUploadImageEvent: ActionEvent {
-    static func == (lhs: ChatUploadImageEvent, rhs: ChatUploadImageEvent) -> Bool {
-        return lhs.image == rhs.image && lhs.channel == rhs.channel
-    }
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(image)
-        hasher.combine(channel)
-    }
-    
-    let image: UIImage
-    let channel: Channel
-    let completion: (URL?) -> Void
-}
-
-struct ChatSendImageEvent: ActionEvent {
-    let image: UIImage
-}
-
-struct ChatSaveMessageEvent: ActionEvent {
-    static func == (lhs: ChatSaveMessageEvent, rhs: ChatSaveMessageEvent) -> Bool {
-        return lhs.message.content == rhs.message.content
-    }
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(message.content)
-    }
-    
-    let message: Message
-    
-    init(user: LocalUser, content: String) {
-        self.message = Message(user: user, content: content)
-    }
-    
-    init(message: Message) {
-       self.message = message
-    }
 }

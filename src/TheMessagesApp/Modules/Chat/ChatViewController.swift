@@ -7,120 +7,122 @@
 
 import UIKit
 import RxSwift
-import Firebase
 import MessageKit
-import FirebaseFirestore
 import Photos
 
 final class ChatViewController: MessagesViewController {
-    
-    private let user: LocalUser
-    private let channel: Channel
-    
-    private var messages: [Message] = []
-   // private var messageListener: ListenerRegistration?
-    
-    private let db = Firestore.firestore()
-    private var reference: CollectionReference?
-    
-    private lazy var coordinator = ChatCoordinator(self)
     private let bag = DisposeBag()
+    private var coordinator: ChatCoordinator!
+    private var cameraItem: InputBarButtonItem!
+    
+    // Will be moved to Coordinator
+    private let user: LocalUser
+    private var messages: [Message] = []
     
     init(user: LocalUser, channel: Channel) {
         self.user = user
-        self.channel = channel
         super.init(nibName: nil, bundle: nil)
+        self.coordinator = ChatCoordinator(self, user: user, channel: channel)
         
         bag.insert(
+            // New message
             coordinator.viewModel.messages.subscribe() { [weak self] event in
                 guard let message = event.element else { return }
                 self?.insertNewMessage(message)
             },
             
+            // Title changes
             coordinator.viewModel.title.subscribe() { [unowned self] event in
                 self.title = event.element
             },
             
+            // Sending photo status
             coordinator.viewModel.isSendingPhoto.subscribe() { [unowned self] event in
                 guard let isSendingPhoto = event.element else { return }
                 
-                DispatchQueue.main.async {
-                    self.messageInputBar.leftStackViewItems.forEach { item in
+                DispatchQueue.main.async { [weak self] in
+                    self?.messageInputBar.leftStackViewItems.forEach { item in
                         item.isEnabled = !isSendingPhoto
                     }
                 }
             },
             
+            // Notification to scroll to bottom
             coordinator.viewModel.scrollToBottom.subscribe() { [unowned self] event in
                 self.messagesCollectionView.scrollToBottom(animated: event.element ?? false)
             }
         )
     }
-
-    required init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        coordinator.emit(ChatViewDidLoadEvent(channel: channel, user: user))
-        
-        guard let id = channel.id else {
-            navigationController?.popViewController(animated: true)
-            return
-        }
-        
-        reference = db.collection(["channels", id, "thread"].joined(separator: "/"))
+        coordinator.emit(ChatViewDidLoadEvent())
         
         navigationItem.largeTitleDisplayMode = .never
-        
         maintainPositionOnKeyboardFrameChanged = true
-        messageInputBar.inputTextView.tintColor = .primary
-        messageInputBar.sendButton.setTitleColor(.primary, for: .normal)
         
-        messageInputBar.delegate = self
+        setupCollectionView()
+        setupCameraButton()
+        setupInputBar()
+        setupUISubscribers()
+    }
+    
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+private extension ChatViewController {
+    func setupCollectionView() {
         messagesCollectionView.messagesDataSource = self
         messagesCollectionView.messagesLayoutDelegate = self
         messagesCollectionView.messagesDisplayDelegate = self
-        
-        // add camera button on input bar
-        let cameraItem = InputBarButtonItem(type: .system)
+    }
+    
+    func setupCameraButton() {
+        cameraItem = InputBarButtonItem(type: .system)
         cameraItem.tintColor = .primary
         cameraItem.image = #imageLiteral(resourceName: "camera")
-        
-        bag.insert(
-            cameraItem.rx.tap.asObservable().subscribe() { [unowned self] _ in
-                self.cameraButtonPressed()
-            }
-        )
-        
         cameraItem.setSize(CGSize(width: 60, height: 30), animated: false)
-        
+    }
+    
+    func setupInputBar() {
+        messageInputBar.inputTextView.tintColor = .primary
+        messageInputBar.sendButton.setTitleColor(.primary, for: .normal)
+        messageInputBar.delegate = self
         messageInputBar.leftStackView.alignment = .center
         messageInputBar.setLeftStackViewWidthConstant(to: 50, animated: false)
         messageInputBar.setStackViewItems([cameraItem], forStack: .left, animated: false)
     }
     
+    func setupUISubscribers() {
+        bag.insert(
+            cameraItem.rx.tap.asObservable().subscribe() { [unowned self] _ in
+                self.cameraButtonPressed()
+            }
+        )
+    }
+}
+
+private extension ChatViewController {
     // MARK: - Actions
-    private func cameraButtonPressed() {
+    func cameraButtonPressed() {
         coordinator.emit(ChatChatCameraButtonPressedEvent())
         
         let picker = UIImagePickerController()
         picker.delegate = self
-
+        
         if UIImagePickerController.isSourceTypeAvailable(.camera) {
             picker.sourceType = .camera
         } else {
             picker.sourceType = .photoLibrary
         }
-
+        
         present(picker, animated: true, completion: nil)
     }
     
-    private func insertNewMessage(_ message: Message) {
-        guard !messages.contains(message) else {
-            return
-        }
+    func insertNewMessage(_ message: Message) {
+        guard !messages.contains(message) else { return }
         
         messages.append(message)
         messages.sort()
@@ -140,7 +142,6 @@ final class ChatViewController: MessagesViewController {
 
 // MARK: - MessagesLayoutDelegate
 extension ChatViewController: MessagesLayoutDelegate {
-    
     func avatarSize(for message: MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) -> CGSize {
         return .zero
     }
@@ -156,7 +157,6 @@ extension ChatViewController: MessagesLayoutDelegate {
 
 // MARK: - MessagesDisplayDelegate
 extension ChatViewController: MessagesDisplayDelegate {
-    
     func backgroundColor(for message: MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) -> UIColor {
         return isFromCurrentSender(message: message) ? .primary : .incomingMessage
     }
@@ -174,7 +174,6 @@ extension ChatViewController: MessagesDisplayDelegate {
 
 // MARK: - MessagesDataSource
 extension ChatViewController: MessagesDataSource {
-    
     func currentSender() -> Sender {
         return Sender(id: user.uid!, displayName: AppSettings.displayName)
     }
@@ -201,7 +200,6 @@ extension ChatViewController: MessagesDataSource {
 
 // MARK: - MessageInputBarDelegate
 extension ChatViewController: MessageInputBarDelegate {
-    
     func messageInputBar(_ inputBar: MessageInputBar, didPressSendButtonWith text: String) {
         let message = Message(user: user, content: text)
         
@@ -212,7 +210,6 @@ extension ChatViewController: MessageInputBarDelegate {
 
 // MARK: - UIImagePickerControllerDelegate
 extension ChatViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-    
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         
         picker.dismiss(animated: true, completion: nil)
@@ -225,9 +222,7 @@ extension ChatViewController: UIImagePickerControllerDelegate, UINavigationContr
                 contentMode: .aspectFit,
                 options: nil) { result, info in
                     
-                    guard let image = result else {
-                        return
-                    }
+                    guard let image = result else { return }
                     
                     self.coordinator.emit(ChatSendImageEvent(image: image))
             }
