@@ -39,7 +39,7 @@ class DefaultAuthenticationService: AuthenticationService {
             if let err = error {
                 completion?(err)
             } else {
-                guard let uid = result?.user.uid else { return }
+                guard let uid = result?.uid else { return }
                 
                 self?.ref.child("users/\(uid)").setValue(userData)
                 self?.logout()
@@ -73,7 +73,7 @@ class DefaultAuthenticationService: AuthenticationService {
             if let err = error {
                 completion?(nil, err)
                 
-            } else if let user = result?.user {
+            } else if let user = result {
                 completion?(user, nil)
             }
         }

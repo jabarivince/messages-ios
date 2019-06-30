@@ -8,7 +8,8 @@ final class AppSettings {
   
   static var displayName: String! {
     get {
-      return UserDefaults.standard.string(forKey: SettingKey.displayName.rawValue)
+        return nil ?? "Meats"
+      //return UserDefaults.standard.string(forKey: SettingKey.displayName.rawValue)
     }
     set {
       let defaults = UserDefaults.standard
