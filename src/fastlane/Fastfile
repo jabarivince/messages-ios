@@ -4,7 +4,7 @@ platform :ios do
   lane :tests do
     run_tests(
       workspace: "TheMessagesApp.xcworkspace",
-      devices: ["iPhone SE (10.0)"],
+      devices: ["iPhone SE (11.0)"],
       scheme: "TheMessagesApp",
       clean: true,
       output_types: "html"
