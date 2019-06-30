@@ -8,11 +8,16 @@
 import RxSwift
 import RxCocoa
 import Firebase
+import Photos
+import UIKit
 
 class ChatCoordinator: Coordinator<ChatViewModel> {
     private var messageListener: ListenerRegistration?
     private let db = Firestore.firestore()
     private var reference: CollectionReference?
+    private let storage = Storage.storage().reference()
+    private var channel: Channel!
+    private var user: LocalUser!
     
     required init(_ viewController: UIViewController) {
         super.init(viewController)
@@ -22,8 +27,6 @@ class ChatCoordinator: Coordinator<ChatViewModel> {
     deinit {
         messageListener?.remove()
     }
-    
-    
 }
 
 private extension ChatCoordinator{
@@ -31,6 +34,8 @@ private extension ChatCoordinator{
     func addObservers() {
         observe(ChatViewDidLoadEvent.self) { [weak self] event in
             self?.viewModel.title.onNext(event.channel.name)
+            self?.channel = event.channel
+            self?.user = event.user
         }
         
         observe(ChatViewDidLoadEvent.self) { [weak self] event in
@@ -51,6 +56,64 @@ private extension ChatCoordinator{
         
         observe(ChatChatCameraButtonPressedEvent.self) { [weak self] event in
             print("Camera button tapped")
+        }
+        
+        observe(ChatUploadImageEvent.self) { [weak self] event in
+            let image = event.image
+            let channel = event.channel
+            let completion = event.completion
+            
+            guard let channelID = channel.id else {
+                completion(nil)
+                return
+            }
+            
+            guard let scaledImage = image.scaledToSafeUploadSize else {return}
+            guard let data = scaledImage.jpegData(compressionQuality: 0.4) else {
+                completion(nil)
+                return
+            }
+            
+            let metadata = StorageMetadata()
+            metadata.contentType = "image/jpeg"
+            
+            let imageName = [UUID().uuidString, String(Date().timeIntervalSince1970)].joined()
+            self?.storage.child(channelID).child(imageName).putData(data, metadata: metadata) { meta, error in
+                completion(meta?.downloadURL())
+            }
+        }
+        
+        observe(ChatSendImageEvent.self) { [weak self] event in
+            
+            guard let channel = self?.channel else { return }
+            self?.viewModel.isSendingPhoto.onNext(true)
+            
+            let event = ChatUploadImageEvent(image: event.image, channel: channel) { [weak self] url in
+                guard let self = self else { return }
+                
+                self.viewModel.isSendingPhoto.onNext(false)
+                
+                guard let url = url else { return }
+                
+                var message = Message(user: self.user, image: event.image)
+                message.downloadURL = url
+                
+                self.emit(ChatSaveMessageEvent(message: message))
+                self.viewModel.scrollToBottom.onNext(false)
+            }
+            
+            self?.emit(event)
+        }
+        
+        observe(ChatSaveMessageEvent.self) { [weak self] event in
+            self?.reference?.addDocument(data: event.message.representation) { [weak self] error in
+                if let e = error {
+                    print("Error sending message: \(e.localizedDescription)")
+                    return
+                }
+                
+                self?.viewModel.scrollToBottom.onNext(false)
+            }
         }
     }
     
@@ -100,15 +163,55 @@ private extension ChatCoordinator{
     }
 }
 
-
 struct ChatViewModel: ViewModel {
     let messages = PublishSubject<Message>()
     let title = PublishSubject<String>()
+    let isSendingPhoto = PublishSubject<Bool>()
+    let scrollToBottom = PublishSubject<Bool>()
 }
 
 struct ChatViewDidLoadEvent: ActionEvent {
     let channel: Channel
+    let user: LocalUser
 }
 
 struct ChatChatCameraButtonPressedEvent: ActionEvent {}
 
+struct ChatUploadImageEvent: ActionEvent {
+    static func == (lhs: ChatUploadImageEvent, rhs: ChatUploadImageEvent) -> Bool {
+        return lhs.image == rhs.image && lhs.channel == rhs.channel
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(image)
+        hasher.combine(channel)
+    }
+    
+    let image: UIImage
+    let channel: Channel
+    let completion: (URL?) -> Void
+}
+
+struct ChatSendImageEvent: ActionEvent {
+    let image: UIImage
+}
+
+struct ChatSaveMessageEvent: ActionEvent {
+    static func == (lhs: ChatSaveMessageEvent, rhs: ChatSaveMessageEvent) -> Bool {
+        return lhs.message.content == rhs.message.content
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(message.content)
+    }
+    
+    let message: Message
+    
+    init(user: LocalUser, content: String) {
+        self.message = Message(user: user, content: content)
+    }
+    
+    init(message: Message) {
+       self.message = message
+    }
+}

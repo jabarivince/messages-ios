@@ -7,7 +7,7 @@
 
 import Firebase
 
-struct LocalUser {
+struct LocalUser: Equatable, Hashable {
     var name: String?
     var user: User
     var uid: String? // TODO - Convert to computed property

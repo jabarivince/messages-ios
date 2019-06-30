@@ -26,18 +26,6 @@ final class ChatViewController: MessagesViewController {
     private lazy var coordinator = ChatCoordinator(self)
     private let bag = DisposeBag()
     
-    private var isSendingPhoto = false {
-        didSet {
-            DispatchQueue.main.async {
-                self.messageInputBar.leftStackViewItems.forEach { item in
-                    item.isEnabled = !self.isSendingPhoto
-                }
-            }
-        }
-    }
-    
-    private let storage = Storage.storage().reference()
-    
     init(user: LocalUser, channel: Channel) {
         self.user = user
         self.channel = channel
@@ -51,6 +39,20 @@ final class ChatViewController: MessagesViewController {
             
             coordinator.viewModel.title.subscribe() { [unowned self] event in
                 self.title = event.element
+            },
+            
+            coordinator.viewModel.isSendingPhoto.subscribe() { [unowned self] event in
+                guard let isSendingPhoto = event.element else { return }
+                
+                DispatchQueue.main.async {
+                    self.messageInputBar.leftStackViewItems.forEach { item in
+                        item.isEnabled = !isSendingPhoto
+                    }
+                }
+            },
+            
+            coordinator.viewModel.scrollToBottom.subscribe() { [unowned self] event in
+                self.messagesCollectionView.scrollToBottom(animated: event.element ?? false)
             }
         )
     }
@@ -61,7 +63,7 @@ final class ChatViewController: MessagesViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        coordinator.emit(ChatViewDidLoadEvent(channel: channel))
+        coordinator.emit(ChatViewDidLoadEvent(channel: channel, user: user))
         
         guard let id = channel.id else {
             navigationController?.popViewController(animated: true)
@@ -105,26 +107,14 @@ final class ChatViewController: MessagesViewController {
         
         let picker = UIImagePickerController()
         picker.delegate = self
-        
+
         if UIImagePickerController.isSourceTypeAvailable(.camera) {
             picker.sourceType = .camera
         } else {
             picker.sourceType = .photoLibrary
         }
-        
+
         present(picker, animated: true, completion: nil)
-    }
-    
-    // MARK: - Helpers
-    private func save(_ message: Message) {
-        reference?.addDocument(data: message.representation) { error in
-            if let e = error {
-                print("Error sending message: \(e.localizedDescription)")
-                return
-            }
-            
-            self.messagesCollectionView.scrollToBottom()
-        }
     }
     
     private func insertNewMessage(_ message: Message) {
@@ -141,51 +131,9 @@ final class ChatViewController: MessagesViewController {
         messagesCollectionView.reloadData()
         
         if shouldScrollToBottom {
-            DispatchQueue.main.async {
-                self.messagesCollectionView.scrollToBottom(animated: true)
+            DispatchQueue.main.async { [weak self] in
+                self?.coordinator.viewModel.scrollToBottom.onNext(true)
             }
-        }
-    }
-    
-    private func uploadImage(_ image: UIImage, to channel: Channel, completion: @escaping (URL?) -> Void) {
-        guard let channelID = channel.id else {
-            completion(nil)
-            return
-        }
-        
-        guard let scaledImage = image.scaledToSafeUploadSize else {return}
-        guard let data = scaledImage.jpegData(compressionQuality: 0.4) else {
-            completion(nil)
-            return
-        }
-        
-        let metadata = StorageMetadata()
-        metadata.contentType = "image/jpeg"
-        
-        let imageName = [UUID().uuidString, String(Date().timeIntervalSince1970)].joined()
-        storage.child(channelID).child(imageName).putData(data, metadata: metadata) { meta, error in
-            completion(meta?.downloadURL())
-        }
-    }
-    
-    private func sendPhoto(_ image: UIImage) {
-        isSendingPhoto = true
-        
-        uploadImage(image, to: channel) { [weak self] url in
-            guard let `self` = self else {
-                return
-            }
-            self.isSendingPhoto = false
-            
-            guard let url = url else {
-                return
-            }
-            
-            var message = Message(user: self.user, image: image)
-            message.downloadURL = url
-            
-            self.save(message)
-            self.messagesCollectionView.scrollToBottom()
         }
     }
 }
@@ -257,7 +205,7 @@ extension ChatViewController: MessageInputBarDelegate {
     func messageInputBar(_ inputBar: MessageInputBar, didPressSendButtonWith text: String) {
         let message = Message(user: user, content: text)
         
-        save(message)
+        coordinator.emit(ChatSaveMessageEvent(message: message))
         inputBar.inputTextView.text = ""
     }
 }
@@ -281,10 +229,10 @@ extension ChatViewController: UIImagePickerControllerDelegate, UINavigationContr
                         return
                     }
                     
-                    self.sendPhoto(image)
+                    self.coordinator.emit(ChatSendImageEvent(image: image))
             }
         } else if let image = info[UIImagePickerController.InfoKey.originalImage] as? UIImage {
-            sendPhoto(image)
+            coordinator.emit(ChatSendImageEvent(image: image))
         }
     }
     
