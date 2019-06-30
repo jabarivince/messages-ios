@@ -10,6 +10,7 @@ import Firebase
 
 class ChannelsCoordinator: Coordinator<ChannelsViewModel> {
     private var channelListener: ListenerRegistration?
+    private let authenticationService = DefaultAuthenticationService.shared
     
     deinit {
         channelListener?.remove()
@@ -67,7 +68,18 @@ private extension ChannelsCoordinator {
         
         // Row tapped
         observe(ChannelsChannelTappedEvent.self) { [unowned self] event in
-            let channel = self.viewModel.channel(at: event.index)
+           
+             let channel = self.viewModel.channel(at: event.index)
+            
+            self.authenticationService.getUser() { [unowned self] user, error in
+                if let _ = error { return }
+                
+                let newUser = user!
+                
+                let controller = ChatViewController(user: newUser, channel: channel)
+                self.viewController?.navigationController?.pushViewController(controller, animated: true)
+            }
+            
             print("TAPPED \(channel.name)")
         }
     }
