@@ -14,19 +14,25 @@ final class ChatViewController: MessagesViewController {
     private let bag = DisposeBag()
     private var coordinator: ChatCoordinator!
     private var cameraItem: InputBarButtonItem!
-    
+    private var messages: [Message] {
+        get {
+            return coordinator.viewModel.messages
+        }
+       
+        set {
+            coordinator.viewModel.messages = newValue
+        }
+    }
     // Will be moved to Coordinator
-    private let user: LocalUser
-    private var messages: [Message] = []
+//    private var messages: [Message] = []
     
     init(user: LocalUser, channel: Channel) {
-        self.user = user
         super.init(nibName: nil, bundle: nil)
         self.coordinator = ChatCoordinator(self, user: user, channel: channel)
         
         bag.insert(
             // New message
-            coordinator.viewModel.messages.subscribe() { [weak self] event in
+            coordinator.viewModel.newMessage.subscribe() { [weak self] event in
                 guard let message = event.element else { return }
                 self?.insertNewMessage(message)
             },
@@ -50,6 +56,10 @@ final class ChatViewController: MessagesViewController {
             // Notification to scroll to bottom
             coordinator.viewModel.scrollToBottom.subscribe() { [unowned self] event in
                 self.messagesCollectionView.scrollToBottom(animated: event.element ?? false)
+            },
+            
+            coordinator.viewModel.clearInputText.subscribe() { [unowned self] event in
+                self.messageInputBar.inputTextView.text = ""
             }
         )
     }
@@ -74,8 +84,8 @@ final class ChatViewController: MessagesViewController {
 
 private extension ChatViewController {
     func setupCollectionView() {
-        messagesCollectionView.messagesDataSource = self
-        messagesCollectionView.messagesLayoutDelegate = self
+        messagesCollectionView.messagesDataSource = self // coordinator
+        messagesCollectionView.messagesLayoutDelegate = self // coordinator
         messagesCollectionView.messagesDisplayDelegate = self
     }
     
@@ -107,33 +117,31 @@ private extension ChatViewController {
 private extension ChatViewController {
     // MARK: - Actions
     func cameraButtonPressed() {
-        coordinator.emit(ChatChatCameraButtonPressedEvent())
-        
         let picker = UIImagePickerController()
         picker.delegate = self
-        
-        if UIImagePickerController.isSourceTypeAvailable(.camera) {
-            picker.sourceType = .camera
-        } else {
-            picker.sourceType = .photoLibrary
-        }
-        
-        present(picker, animated: true, completion: nil)
+        coordinator.emit(ChatChatCameraButtonPressedEvent(picker: picker))
     }
     
     func insertNewMessage(_ message: Message) {
+        // goes
         guard !messages.contains(message) else { return }
         
         messages.append(message)
         messages.sort()
         
+        // pass this thru rx
         let isLatestMessage = messages.firstIndex(of: message) == (messages.count - 1)
+        
+        // stays
         let shouldScrollToBottom = messagesCollectionView.isAtBottom && isLatestMessage
         
+        //--------------------------------------
         messagesCollectionView.reloadData()
         
         if shouldScrollToBottom {
             DispatchQueue.main.async { [weak self] in
+                
+                // call directly
                 self?.coordinator.viewModel.scrollToBottom.onNext(true)
             }
         }
@@ -142,22 +150,32 @@ private extension ChatViewController {
 
 // MARK: - MessagesLayoutDelegate
 extension ChatViewController: MessagesLayoutDelegate {
-    func avatarSize(for message: MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) -> CGSize {
+    func avatarSize(for message: MessageType,
+                    at indexPath: IndexPath,
+                    in messagesCollectionView: MessagesCollectionView) -> CGSize {
         return .zero
     }
     
-    func footerViewSize(for message: MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) -> CGSize {
+    func footerViewSize(for message: MessageType,
+                        at indexPath: IndexPath,
+                        in messagesCollectionView: MessagesCollectionView) -> CGSize {
         return CGSize(width: 0, height: 8)
     }
     
-    func heightForLocation(message: MessageType, at indexPath: IndexPath, with maxWidth: CGFloat, in messagesCollectionView: MessagesCollectionView) -> CGFloat {
+    func heightForLocation(message: MessageType,
+                           at indexPath: IndexPath,
+                           with maxWidth: CGFloat,
+                           in messagesCollectionView: MessagesCollectionView) -> CGFloat {
         return 0
     }
 }
 
 // MARK: - MessagesDisplayDelegate
 extension ChatViewController: MessagesDisplayDelegate {
-    func backgroundColor(for message: MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) -> UIColor {
+    func backgroundColor(for message: MessageType,
+                         at indexPath: IndexPath,
+                         in messagesCollectionView: MessagesCollectionView) -> UIColor {
+        
         return isFromCurrentSender(message: message) ? .primary : .incomingMessage
     }
     
@@ -165,9 +183,11 @@ extension ChatViewController: MessagesDisplayDelegate {
         return false
     }
     
-    func messageStyle(for message: MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) -> MessageStyle {
-        let corner: MessageStyle.TailCorner = isFromCurrentSender(message: message) ? .bottomRight : .bottomLeft
+    func messageStyle(for message: MessageType,
+                      at indexPath: IndexPath,
+                      in messagesCollectionView: MessagesCollectionView) -> MessageStyle {
         
+        let corner: MessageStyle.TailCorner = isFromCurrentSender(message: message) ? .bottomRight : .bottomLeft
         return .bubbleTail(corner, .curved)
     }
 }
@@ -175,7 +195,7 @@ extension ChatViewController: MessagesDisplayDelegate {
 // MARK: - MessagesDataSource
 extension ChatViewController: MessagesDataSource {
     func currentSender() -> Sender {
-        return Sender(id: user.uid!, displayName: AppSettings.displayName)
+        return coordinator.viewModel.currentSender
     }
     
     func numberOfMessages(in messagesCollectionView: MessagesCollectionView) -> Int {
@@ -201,37 +221,17 @@ extension ChatViewController: MessagesDataSource {
 // MARK: - MessageInputBarDelegate
 extension ChatViewController: MessageInputBarDelegate {
     func messageInputBar(_ inputBar: MessageInputBar, didPressSendButtonWith text: String) {
-        let message = Message(user: user, content: text)
-        
-        coordinator.emit(ChatSaveMessageEvent(message: message))
-        inputBar.inputTextView.text = ""
+        coordinator.emit(ChatDidPressSendButtonWithTextEvent(text: text))
     }
 }
 
 // MARK: - UIImagePickerControllerDelegate
 extension ChatViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-        
-        picker.dismiss(animated: true, completion: nil)
-        
-        if let asset = info[UIImagePickerController.InfoKey.phAsset] as? PHAsset {
-            let size = CGSize(width: 500, height: 500)
-            PHImageManager.default().requestImage(
-                for: asset,
-                targetSize: size,
-                contentMode: .aspectFit,
-                options: nil) { result, info in
-                    
-                    guard let image = result else { return }
-                    
-                    self.coordinator.emit(ChatSendImageEvent(image: image))
-            }
-        } else if let image = info[UIImagePickerController.InfoKey.originalImage] as? UIImage {
-            coordinator.emit(ChatSendImageEvent(image: image))
-        }
+        coordinator.emit(ChatImagePickerDidFinishPickingMediaEvent(picker: picker, info: info))
     }
     
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-        picker.dismiss(animated: true, completion: nil)
+        coordinator.emit(ChatImagePickerDidCancelEvent(picker: picker))
     }
 }

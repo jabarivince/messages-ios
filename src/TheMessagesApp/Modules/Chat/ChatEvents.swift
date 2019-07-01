@@ -9,7 +9,9 @@ import UIKit
 
 struct ChatViewDidLoadEvent: ActionEvent {}
 
-struct ChatChatCameraButtonPressedEvent: ActionEvent {}
+struct ChatChatCameraButtonPressedEvent: ActionEvent {
+    let picker: UIImagePickerController
+}
 
 struct ChatSendImageEvent: ActionEvent {
     let image: UIImage
@@ -25,4 +27,17 @@ struct ChatSaveMessageEvent: ActionEvent {
     init(message: Message) {
         self.message = message
     }
+}
+
+struct ChatImagePickerDidFinishPickingMediaEvent: ActionEvent {
+    let picker: UIImagePickerController
+    let info: [UIImagePickerController.InfoKey : Any]
+}
+
+struct ChatImagePickerDidCancelEvent: ActionEvent {
+    let picker: UIImagePickerController
+}
+
+struct ChatDidPressSendButtonWithTextEvent: ActionEvent {
+    let text: String
 }

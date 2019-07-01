@@ -7,6 +7,8 @@
 
 import RxSwift
 import Firebase
+import MessageKit
+import Photos
 import UIKit
 
 class ChatCoordinator: Coordinator<ChatViewModel> {
@@ -22,6 +24,7 @@ class ChatCoordinator: Coordinator<ChatViewModel> {
         self.channel      = channel
         self.collection   = FirestoreService.Collection("channels", channel.id!, "thread")
         self.imageService = DefaultImageService.shared
+        self.viewModel.user = user
         addObservers()
     }
     
@@ -46,8 +49,16 @@ private extension ChatCoordinator {
         }
         
         // Camera button tapped
-        observe(ChatChatCameraButtonPressedEvent.self) { event in
-            print("Camera button tapped")
+        observe(ChatChatCameraButtonPressedEvent.self) { [unowned self] event in
+            let picker = event.picker
+            
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                picker.sourceType = .camera
+            } else {
+                picker.sourceType = .photoLibrary
+            }
+            
+            self.viewController?.present(picker, animated: true, completion: nil)
         }
         
         // Send image
@@ -72,6 +83,20 @@ private extension ChatCoordinator {
         observe(ChatSaveMessageEvent.self) { [unowned self] event in
             self.save(event.message)
         }
+        
+        observe(ChatImagePickerDidFinishPickingMediaEvent.self) { [unowned self] event in
+            self.imagePickerController(event.picker, didFinishPickingMediaWithInfo: event.info)
+        }
+        
+        observe(ChatImagePickerDidCancelEvent.self) { event in
+             event.picker.dismiss(animated: true, completion: nil)
+        }
+        
+        observe(ChatDidPressSendButtonWithTextEvent.self) { [unowned self] event in
+            let message = Message(user: self.user, content: event.text)
+            self.save(message)
+            self.viewModel.clearInputText.onNext(())
+        }
     }
 }
 
@@ -89,21 +114,56 @@ private extension ChatCoordinator {
         else { return }
         
         guard let url = message.downloadURL else {
-            viewModel.messages.onNext(message)
+            viewModel.newMessage.onNext(message)
             return
         }
         
         imageService.download(from: url) { [weak self] image in
             guard let image = image else { return }
             message.image = image
-            self?.viewModel.messages.onNext(message)
+            self?.viewModel.newMessage.onNext(message)
         }
     }
 }
 
+private extension ChatCoordinator {
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        
+        picker.dismiss(animated: true, completion: nil)
+        
+        if let asset = info[UIImagePickerController.InfoKey.phAsset] as? PHAsset {
+            let size = CGSize(width: 500, height: 500)
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: size,
+                contentMode: .aspectFit,
+                options: nil) { result, info in
+                    
+                    guard let image = result else { return }
+                    
+                    self.emit(ChatSendImageEvent(image: image))
+                    // send()
+            }
+        } else if let image = info[UIImagePickerController.InfoKey.originalImage] as? UIImage {
+            emit(ChatSendImageEvent(image: image))
+            // send()
+        }
+    }
+}
+
+
 struct ChatViewModel: ViewModel {
     let title = PublishSubject<String>()
-    let messages = PublishSubject<Message>()
+    let newMessage = PublishSubject<Message>()
     let isSendingPhoto = PublishSubject<Bool>()
     let scrollToBottom = PublishSubject<Bool>()
+    let clearInputText = PublishSubject<Void>()
+    
+    fileprivate var user: LocalUser!
+    
+    var messages = [Message]()
+    
+    var currentSender: Sender {
+        return Sender(id: user.uid!, displayName: AppSettings.displayName)
+    }
 }
