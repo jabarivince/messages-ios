@@ -8,12 +8,12 @@
 import UIKit
 import RxSwift
 import MessageKit
-import Photos
 
 final class ChatViewController: MessagesViewController {
     private let bag = DisposeBag()
     private var coordinator: ChatCoordinator!
     private var cameraItem: InputBarButtonItem!
+    
     private var messages: [Message] {
         get {
             return coordinator.viewModel.messages
@@ -23,23 +23,69 @@ final class ChatViewController: MessagesViewController {
             coordinator.viewModel.messages = newValue
         }
     }
-    // Will be moved to Coordinator
-//    private var messages: [Message] = []
     
     init(user: LocalUser, channel: Channel) {
         super.init(nibName: nil, bundle: nil)
         self.coordinator = ChatCoordinator(self, user: user, channel: channel)
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        coordinator.emit(ChatViewDidLoadEvent())
         
+        title = coordinator.viewModel.title
+        navigationItem.largeTitleDisplayMode = .never
+        maintainPositionOnKeyboardFrameChanged = true
+
+        setupCollectionView()
+        setupCameraButton()
+        setupInputBar()
+        setupSubscribers()
+    }
+    
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+// MARK:- Setup functions
+private extension ChatViewController {
+    func setupCollectionView() {
+        messagesCollectionView.messagesDataSource = self
+        messagesCollectionView.messagesLayoutDelegate = self
+        messagesCollectionView.messagesDisplayDelegate = self
+    }
+    
+    func setupCameraButton() {
+        cameraItem = InputBarButtonItem(type: .system)
+        cameraItem.tintColor = .primary
+        cameraItem.image = #imageLiteral(resourceName: "camera")
+        cameraItem.setSize(CGSize(width: 60, height: 30), animated: false)
+    }
+    
+    func setupInputBar() {
+        messageInputBar.inputTextView.tintColor = .primary
+        messageInputBar.sendButton.setTitleColor(.primary, for: .normal)
+        messageInputBar.delegate = self
+        messageInputBar.leftStackView.alignment = .center
+        messageInputBar.setLeftStackViewWidthConstant(to: 50, animated: false)
+        messageInputBar.setStackViewItems([cameraItem], forStack: .left, animated: false)
+    }
+    
+    func setupSubscribers() {
+        setupCoordinatorSubscribers()
+        setupUISubscribers()
+    }
+}
+
+// MARK:- Rx subscribers
+private extension ChatViewController {
+    func setupCoordinatorSubscribers() {
         bag.insert(
             // New message
             coordinator.viewModel.newMessage.subscribe() { [weak self] event in
                 guard let message = event.element else { return }
                 self?.insertNewMessage(message)
-            },
-            
-            // Title changes
-            coordinator.viewModel.title.subscribe() { [unowned self] event in
-                self.title = event.element
             },
             
             // Sending photo status
@@ -58,51 +104,11 @@ final class ChatViewController: MessagesViewController {
                 self.messagesCollectionView.scrollToBottom(animated: event.element ?? false)
             },
             
+            // Clear the input bar
             coordinator.viewModel.clearInputText.subscribe() { [unowned self] event in
                 self.messageInputBar.inputTextView.text = ""
             }
         )
-    }
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        coordinator.emit(ChatViewDidLoadEvent())
-        
-        navigationItem.largeTitleDisplayMode = .never
-        maintainPositionOnKeyboardFrameChanged = true
-        
-        setupCollectionView()
-        setupCameraButton()
-        setupInputBar()
-        setupUISubscribers()
-    }
-    
-    required init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
-private extension ChatViewController {
-    func setupCollectionView() {
-        messagesCollectionView.messagesDataSource = self // coordinator
-        messagesCollectionView.messagesLayoutDelegate = self // coordinator
-        messagesCollectionView.messagesDisplayDelegate = self
-    }
-    
-    func setupCameraButton() {
-        cameraItem = InputBarButtonItem(type: .system)
-        cameraItem.tintColor = .primary
-        cameraItem.image = #imageLiteral(resourceName: "camera")
-        cameraItem.setSize(CGSize(width: 60, height: 30), animated: false)
-    }
-    
-    func setupInputBar() {
-        messageInputBar.inputTextView.tintColor = .primary
-        messageInputBar.sendButton.setTitleColor(.primary, for: .normal)
-        messageInputBar.delegate = self
-        messageInputBar.leftStackView.alignment = .center
-        messageInputBar.setLeftStackViewWidthConstant(to: 50, animated: false)
-        messageInputBar.setStackViewItems([cameraItem], forStack: .left, animated: false)
     }
     
     func setupUISubscribers() {
@@ -179,7 +185,9 @@ extension ChatViewController: MessagesDisplayDelegate {
         return isFromCurrentSender(message: message) ? .primary : .incomingMessage
     }
     
-    func shouldDisplayHeader(for message: MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) -> Bool {
+    func shouldDisplayHeader(for message: MessageType,
+                             at indexPath: IndexPath,
+                             in messagesCollectionView: MessagesCollectionView) -> Bool {
         return false
     }
     
@@ -207,9 +215,8 @@ extension ChatViewController: MessagesDataSource {
     }
     
     func cellTopLabelAttributedText(for message: MessageType, at indexPath: IndexPath) -> NSAttributedString? {
-        let name = message.sender.displayName
         return NSAttributedString(
-            string: name,
+            string: message.sender.displayName,
             attributes: [
                 .font: UIFont.preferredFont(forTextStyle: .caption1),
                 .foregroundColor: UIColor(white: 0.3, alpha: 1)
@@ -227,7 +234,9 @@ extension ChatViewController: MessageInputBarDelegate {
 
 // MARK: - UIImagePickerControllerDelegate
 extension ChatViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+    func imagePickerController(_ picker: UIImagePickerController,
+                               didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        
         coordinator.emit(ChatImagePickerDidFinishPickingMediaEvent(picker: picker, info: info))
     }
     

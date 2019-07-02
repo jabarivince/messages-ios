@@ -79,8 +79,6 @@ private extension ChannelsCoordinator {
                 let controller = ChatViewController(user: newUser, channel: channel)
                 self.viewController?.navigationController?.pushViewController(controller, animated: true)
             }
-            
-            print("TAPPED \(channel.name)")
         }
     }
 }

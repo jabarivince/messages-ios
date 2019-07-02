@@ -15,16 +15,13 @@ class ChatCoordinator: Coordinator<ChatViewModel> {
     private var imageService: ImageService!
     private var messageListener: ListenerRegistration!
     private var collection: FirestoreService.Collection!
-    private var channel: Channel!
-    private var user: LocalUser!
     
     convenience init(_ viewController: UIViewController, user: LocalUser, channel: Channel) {
         self.init(viewController)
-        self.user         = user
-        self.channel      = channel
-        self.collection   = FirestoreService.Collection("channels", channel.id!, "thread")
-        self.imageService = DefaultImageService.shared
-        self.viewModel.user = user
+        self.viewModel.user    = user
+        self.viewModel.channel = channel
+        self.collection        = FirestoreService.Collection("channels", channel.id!, "thread")
+        self.imageService      = DefaultImageService.shared
         addObservers()
     }
     
@@ -41,8 +38,6 @@ private extension ChatCoordinator {
     func addObservers() {
         // View loaded
         observe(ChatViewDidLoadEvent.self) { [unowned self] event in
-            self.viewModel.title.onNext(self.channel.name)
-            
             self.messageListener = FirestoreService.onChanges(to: self.collection) { [weak self] change in
                 self?.respond(to: change)
             }
@@ -50,50 +45,23 @@ private extension ChatCoordinator {
         
         // Camera button tapped
         observe(ChatChatCameraButtonPressedEvent.self) { [unowned self] event in
-            let picker = event.picker
-            
-            if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                picker.sourceType = .camera
-            } else {
-                picker.sourceType = .photoLibrary
-            }
-            
-            self.viewController?.present(picker, animated: true, completion: nil)
+            event.picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+            self.viewController?.present(event.picker, animated: true, completion: nil)
         }
         
-        // Send image
-        observe(ChatSendImageEvent.self) { [unowned self] event in
-            self.viewModel.isSendingPhoto.onNext(true)
-            
-            self.imageService.upload(image: event.image, channel: self.channel) { [weak self] url in
-                guard let self = self else { return }
-                
-                self.viewModel.isSendingPhoto.onNext(false)
-                
-                guard let url = url else { return }
-                
-                var message = Message(user: self.user, image: event.image)
-                message.downloadURL = url
-                
-                self.save(message)
-            }
-        }
-        
-        // Save message
-        observe(ChatSaveMessageEvent.self) { [unowned self] event in
-            self.save(event.message)
-        }
-        
+        // Image picked
         observe(ChatImagePickerDidFinishPickingMediaEvent.self) { [unowned self] event in
             self.imagePickerController(event.picker, didFinishPickingMediaWithInfo: event.info)
         }
         
+        // Image picker cancelled
         observe(ChatImagePickerDidCancelEvent.self) { event in
              event.picker.dismiss(animated: true, completion: nil)
         }
         
+        //  Send button tapped with text to send
         observe(ChatDidPressSendButtonWithTextEvent.self) { [unowned self] event in
-            let message = Message(user: self.user, content: event.text)
+            let message = Message(user: self.viewModel.user, content: event.text)
             self.save(message)
             self.viewModel.clearInputText.onNext(())
         }
@@ -101,6 +69,23 @@ private extension ChatCoordinator {
 }
 
 private extension ChatCoordinator {
+    func send(_ image: UIImage) {
+        self.viewModel.isSendingPhoto.onNext(true)
+        
+        self.imageService.upload(image: image, channel: self.viewModel.channel) { [weak self] url in
+            guard let self = self else { return }
+            
+            self.viewModel.isSendingPhoto.onNext(false)
+            
+            guard let url = url else { return }
+            
+            var message = Message(user: self.viewModel.user, image: image)
+            message.downloadURL = url
+            
+            self.save(message)
+        }
+    }
+    
     func save(_ message: Message) {
         FirestoreService.add(message, to: collection) { [weak self] error in
             self?.viewModel.scrollToBottom.onNext(false)
@@ -126,8 +111,10 @@ private extension ChatCoordinator {
     }
 }
 
+// UIImagePicker
 private extension ChatCoordinator {
-    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+    func imagePickerController(_ picker: UIImagePickerController,
+                               didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         
         picker.dismiss(animated: true, completion: nil)
         
@@ -140,30 +127,32 @@ private extension ChatCoordinator {
                 options: nil) { result, info in
                     
                     guard let image = result else { return }
-                    
-                    self.emit(ChatSendImageEvent(image: image))
-                    // send()
+                    self.send(image)
             }
         } else if let image = info[UIImagePickerController.InfoKey.originalImage] as? UIImage {
-            emit(ChatSendImageEvent(image: image))
-            // send()
+            send(image)
         }
     }
 }
 
 
 struct ChatViewModel: ViewModel {
-    let title = PublishSubject<String>()
-    let newMessage = PublishSubject<Message>()
-    let isSendingPhoto = PublishSubject<Bool>()
-    let scrollToBottom = PublishSubject<Bool>()
-    let clearInputText = PublishSubject<Void>()
-    
     fileprivate var user: LocalUser!
+    fileprivate var channel: Channel!
     
+    // TODO - Eventually will be fileprivate
     var messages = [Message]()
+    
+    var title: String {
+        return channel.name
+    }
     
     var currentSender: Sender {
         return Sender(id: user.uid!, displayName: AppSettings.displayName)
     }
+    
+    let isSendingPhoto = PublishSubject<Bool>()
+    let scrollToBottom = PublishSubject<Bool>()
+    let clearInputText = PublishSubject<Void>()
+    let newMessage     = PublishSubject<Message>()
 }
